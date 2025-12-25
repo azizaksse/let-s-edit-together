@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, X, ImageIcon } from "lucide-react";
+import { Plus, X, ImageIcon, Upload, Link } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ProductVariant } from "@/hooks/useProducts";
 import { toast } from "sonner";
 
@@ -65,9 +66,26 @@ export const AddProductForm = ({
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
   const [image, setImage] = useState("");
+  const [imageTab, setImageTab] = useState<"upload" | "url">("upload");
   const [variants, setVariants] = useState<ProductVariant[]>([
     { size: "M", color: "Black", stock: 0 },
   ]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image must be less than 5MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const addVariant = () => {
     setVariants([...variants, { size: "M", color: "Black", stock: 0 }]);
@@ -177,30 +195,89 @@ export const AddProductForm = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="image">Image URL</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="image"
-                  value={image}
-                  onChange={(e) => setImage(e.target.value)}
-                  placeholder="https://..."
-                  className="input-luxury"
-                />
-                <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                  {image ? (
-                    <img
-                      src={image}
-                      alt="Preview"
-                      className="h-full w-full object-cover rounded-lg"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/placeholder.svg";
-                      }}
+              <Label>Product Image</Label>
+              <Tabs value={imageTab} onValueChange={(v) => setImageTab(v as "upload" | "url")}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="upload" className="gap-2">
+                    <Upload className="h-4 w-4" />
+                    Upload
+                  </TabsTrigger>
+                  <TabsTrigger value="url" className="gap-2">
+                    <Link className="h-4 w-4" />
+                    URL
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="upload" className="mt-3">
+                  <div
+                    className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-accent transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {image && imageTab === "upload" ? (
+                      <div className="relative">
+                        <img
+                          src={image}
+                          alt="Preview"
+                          className="h-24 w-24 mx-auto object-cover rounded-lg"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-6 w-6 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setImage("");
+                            if (fileInputRef.current) fileInputRef.current.value = "";
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          Click to upload image
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Max 5MB
+                        </p>
+                      </>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileUpload}
                     />
-                  ) : (
-                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </div>
-              </div>
+                  </div>
+                </TabsContent>
+                <TabsContent value="url" className="mt-3">
+                  <div className="flex gap-2">
+                    <Input
+                      value={imageTab === "url" ? image : ""}
+                      onChange={(e) => setImage(e.target.value)}
+                      placeholder="https://..."
+                      className="input-luxury"
+                    />
+                    <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0 overflow-hidden">
+                      {image && imageTab === "url" ? (
+                        <img
+                          src={image}
+                          alt="Preview"
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "/placeholder.svg";
+                          }}
+                        />
+                      ) : (
+                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
 
